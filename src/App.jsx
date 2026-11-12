@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ThemeProvider } from './context/ThemeContext';
-import { Input, Button } from './components/ui/SharedUI';
-import { User, Sparkles } from 'lucide-react';
+import { Button } from './components/ui/SharedUI';
+import { User, Sparkles, Eye, EyeOff } from 'lucide-react';
 import { supabase } from './lib/supabase';
 
 import AdminDashboard from './components/admin/AdminDashboard';
@@ -16,6 +16,9 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  
+  // STATE BARU UNTUK FITUR SHOW/HIDE PASSWORD
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -69,7 +72,6 @@ export default function App() {
               <div className="relative z-10 flex items-center gap-4">
                 <div className="relative group">
                   <div className="absolute inset-0 bg-blue-400/20 rounded-full blur-md opacity-70 group-hover:opacity-100 transition-opacity"></div>
-                  {/* UPDATE PNG DI SINI */}
                   <img 
                     src="/logo-sekolah.png" 
                     alt="Logo SMAN 1 Batudaa Pantai" 
@@ -112,25 +114,41 @@ export default function App() {
                 )}
 
                 <form onSubmit={handleLogin} className="space-y-6">
-                  <div className="space-y-1.5">
-                    <Input 
-                      label="Username / NISN" 
+                  
+                  {/* FORM INPUT USERNAME KHUSUS CERAH & TEGAS */}
+                  <div className="space-y-1.5 relative">
+                    <label className="text-sm font-bold text-gray-300 tracking-wide">Username / NISN</label>
+                    <input 
+                      type="text"
                       placeholder="Masukkan ID Anda..." 
                       value={username} 
                       onChange={(e) => setUsername(e.target.value)} 
-                      className="bg-white/95 text-gray-900 placeholder-gray-400 font-semibold focus:bg-white focus:ring-2 focus:ring-blue-500 border-white/20 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] transition-all"
+                      className="w-full bg-white text-gray-900 placeholder-gray-400 font-bold rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner transition-all border-none"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Input 
-                      label="Password" 
-                      type="password" 
-                      placeholder="••••••••" 
-                      value={password} 
-                      onChange={(e) => setPassword(e.target.value)} 
-                      className="bg-white/95 text-gray-900 placeholder-gray-400 font-semibold focus:bg-white focus:ring-2 focus:ring-blue-500 border-white/20 shadow-[inset_0_2px_4px_rgba(0,0,0,0.1)] transition-all"
-                    />
+
+                  {/* FORM INPUT PASSWORD DENGAN FITUR SHOW/HIDE */}
+                  <div className="space-y-1.5 relative">
+                    <label className="text-sm font-bold text-gray-300 tracking-wide">Password</label>
+                    <div className="relative">
+                      <input 
+                        type={showPassword ? "text" : "password"} 
+                        placeholder="••••••••" 
+                        value={password} 
+                        onChange={(e) => setPassword(e.target.value)} 
+                        className="w-full bg-white text-gray-900 placeholder-gray-400 font-bold rounded-xl pl-4 pr-12 py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner transition-all border-none"
+                      />
+                      {/* TOMBOL MATA UNTUK SHOW/HIDE */}
+                      <button 
+                        type="button" 
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-600 transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
                   </div>
+
                   <Button type="submit" className="w-full py-4 mt-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 border-none shadow-[0_8px_20px_rgba(37,99,235,0.25)] transition-all duration-300 transform hover:-translate-y-1 rounded-xl text-base" disabled={isLoggingIn}>
                     <span className="flex items-center justify-center gap-2 font-bold tracking-wide">
                       {isLoggingIn ? 'Mengautentikasi...' : <><User size={18}/> Masuk ke Sistem</>}

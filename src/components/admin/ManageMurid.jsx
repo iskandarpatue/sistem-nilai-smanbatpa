@@ -61,7 +61,6 @@ export default function ManageMurid() {
     }
   };
 
-  // FITUR DOWNLOAD TEMPLATE
   const handleDownloadTemplate = () => {
     const csv = "data:text/csv;charset=utf-8,NISN,Nama Lengkap,Kelas,Jenis Kelamin\n0012345678,Ahmad Siswa,X-1,Laki-laki";
     const link = document.createElement("a"); 
@@ -72,11 +71,62 @@ export default function ManageMurid() {
     document.body.removeChild(link);
   };
 
-  const handleFileUpload = (e) => {
+  // FITUR UPLOAD MASSAL YANG SUDAH AKTIF
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
-    if (file) {
-      alert(`Simulasi: File ${file.name} terbaca. Integrasi upload massal ke Supabase akan disiapkan di tahap lanjutan.`);
-    }
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target.result;
+        // Pisahkan per baris dan hapus baris yang kosong
+        const rows = text.split('\n').filter(row => row.trim() !== '');
+        
+        if (rows.length <= 1) {
+          alert("File kosong atau hanya berisi judul (header).");
+          return;
+        }
+
+        const dataToInsert = [];
+        // Mulai dari index 1 untuk melewati baris Header
+        for (let i = 1; i < rows.length; i++) {
+          // Pisahkan berdasarkan koma
+          const cols = rows[i].split(',').map(col => col.trim());
+          
+          // Pastikan ada 4 kolom (NISN, Nama, Kelas, JK)
+          if (cols.length >= 4) {
+            dataToInsert.push({
+              nisn: cols[0],
+              nama: cols[1],
+              kelas: cols[2],
+              jenis_kelamin: cols[3]
+            });
+          }
+        }
+
+        if (dataToInsert.length > 0) {
+          setIsLoading(true);
+          const { error } = await supabase.from('murid').insert(dataToInsert);
+          
+          if (error) {
+            alert("Gagal menyimpan ke database: " + error.message);
+          } else {
+            alert(`Sukses! ${dataToInsert.length} data murid berhasil ditambahkan.`);
+            fetchMurid(); // Segarkan tabel otomatis
+          }
+        } else {
+          alert("Tidak ada data valid yang bisa dibaca. Pastikan format sesuai template.");
+        }
+      } catch (error) {
+        alert("Terjadi kesalahan saat membaca file.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    reader.readAsText(file);
+    e.target.value = null; // Reset input agar bisa upload file yang sama lagi jika perlu
   };
 
   const filteredMurid = murid.filter(m => 
@@ -106,13 +156,12 @@ export default function ManageMurid() {
           
           <Button variant="secondary" icon={Download} onClick={handleDownloadTemplate}>Template</Button>
           
-          <input type="file" accept=".csv, .xlsx" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
+          <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
           <Button variant="secondary" icon={UploadCloud} onClick={() => fileInputRef.current?.click()}>Upload</Button>
           <Button icon={Plus} onClick={() => handleOpenModal()}>Tambah</Button>
         </div>
       </div>
 
-      {/* Banner Informasi Login Siswa */}
       <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-2xl flex items-start gap-3">
         <Info className="text-blue-400 shrink-0 mt-0.5" size={20} />
         <div>

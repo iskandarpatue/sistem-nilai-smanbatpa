@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Edit2, Trash2, Search, GraduationCap, UploadCloud, Info, Download } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, GraduationCap, UploadCloud, Info, Download, Printer, FileText } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { Input, Button, Modal, Select } from '../ui/SharedUI';
 import { supabase } from '../../lib/supabase'; 
@@ -71,7 +71,6 @@ export default function ManageMurid() {
     document.body.removeChild(link);
   };
 
-  // FITUR UPLOAD MASSAL YANG SUDAH AKTIF
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -80,7 +79,6 @@ export default function ManageMurid() {
     reader.onload = async (event) => {
       try {
         const text = event.target.result;
-        // Pisahkan per baris dan hapus baris yang kosong
         const rows = text.split('\n').filter(row => row.trim() !== '');
         
         if (rows.length <= 1) {
@@ -89,32 +87,18 @@ export default function ManageMurid() {
         }
 
         const dataToInsert = [];
-        // Mulai dari index 1 untuk melewati baris Header
         for (let i = 1; i < rows.length; i++) {
-          // Pisahkan berdasarkan koma
           const cols = rows[i].split(',').map(col => col.trim());
-          
-          // Pastikan ada 4 kolom (NISN, Nama, Kelas, JK)
           if (cols.length >= 4) {
-            dataToInsert.push({
-              nisn: cols[0],
-              nama: cols[1],
-              kelas: cols[2],
-              jenis_kelamin: cols[3]
-            });
+            dataToInsert.push({ nisn: cols[0], nama: cols[1], kelas: cols[2], jenis_kelamin: cols[3] });
           }
         }
 
         if (dataToInsert.length > 0) {
           setIsLoading(true);
           const { error } = await supabase.from('murid').insert(dataToInsert);
-          
-          if (error) {
-            alert("Gagal menyimpan ke database: " + error.message);
-          } else {
-            alert(`Sukses! ${dataToInsert.length} data murid berhasil ditambahkan.`);
-            fetchMurid(); // Segarkan tabel otomatis
-          }
+          if (error) alert("Gagal menyimpan ke database: " + error.message);
+          else { alert(`Sukses! ${dataToInsert.length} data murid ditambahkan.`); fetchMurid(); }
         } else {
           alert("Tidak ada data valid yang bisa dibaca. Pastikan format sesuai template.");
         }
@@ -124,9 +108,136 @@ export default function ManageMurid() {
         setIsLoading(false);
       }
     };
-    
     reader.readAsText(file);
-    e.target.value = null; // Reset input agar bisa upload file yang sama lagi jika perlu
+    e.target.value = null; 
+  };
+
+  // FITUR CETAK KARTU PDF (Layout 10 Kartu per A4)
+  const handlePrintKartu = () => {
+    if (filteredMurid.length === 0) return alert('Tidak ada data murid untuk dicetak.');
+    
+    let kartuHTML = '';
+    filteredMurid.forEach((m) => {
+      kartuHTML += `
+        <div class="kartu">
+          <div class="header">
+            <strong>SMAN 1 BATUDAA PANTAI</strong><br/>
+            KARTU LOGIN SISTEM NILAI
+          </div>
+          <div class="content">
+            <table>
+              <tr><td width="70">Nama</td><td width="10">:</td><td><strong>${m.nama}</strong></td></tr>
+              <tr><td>Kelas</td><td>:</td><td>${m.kelas}</td></tr>
+              <tr><td>Username</td><td>:</td><td><strong>${m.nisn}</strong></td></tr>
+              <tr><td>Password</td><td>:</td><td><strong>siswa123</strong></td></tr>
+            </table>
+          </div>
+        </div>
+      `;
+    });
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Cetak Kartu Login</title>
+          <style>
+            @page { size: A4; margin: 15mm; }
+            body { font-family: 'Times New Roman', Times, serif; font-size: 12px; margin: 0; padding: 0; }
+            .container { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; }
+            .kartu { width: 48%; border: 2px solid #000; border-radius: 8px; margin-bottom: 15px; box-sizing: border-box; overflow: hidden; page-break-inside: avoid; }
+            .header { text-align: center; background-color: #f0f0f0; padding: 8px; border-bottom: 2px solid #000; font-size: 14px; }
+            .content { padding: 10px; }
+            table { width: 100%; border-collapse: collapse; }
+            td { padding: 4px 0; vertical-align: top; }
+          </style>
+        </head>
+        <body>
+          <div class="container">${kartuHTML}</div>
+          <script>
+            window.onload = function() { window.print(); }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  // FITUR EXPORT KARTU KE MICROSOFT WORD
+  const handleExportWord = () => {
+    if (filteredMurid.length === 0) return alert('Tidak ada data murid untuk diexport.');
+    
+    let tableRows = '';
+    for (let i = 0; i < filteredMurid.length; i += 2) {
+      const m1 = filteredMurid[i];
+      const m2 = filteredMurid[i + 1];
+      
+      const kartu1 = `
+        <div style="border: 2px solid #000; padding: 0; border-radius: 8px; width: 100%;">
+          <div style="text-align: center; background-color: #e0f2fe; padding: 10px; border-bottom: 2px solid #000;">
+            <b style="font-size: 14pt;">SMAN 1 BATUDAA PANTAI</b><br/>
+            <span>KARTU LOGIN SISTEM NILAI</span>
+          </div>
+          <div style="padding: 10px;">
+            <table style="width: 100%; font-size: 12pt;">
+              <tr><td width="30%">Nama</td><td width="5%">:</td><td><b>${m1.nama}</b></td></tr>
+              <tr><td>Kelas</td><td>:</td><td>${m1.kelas}</td></tr>
+              <tr><td>Username</td><td>:</td><td><b>${m1.nisn}</b></td></tr>
+              <tr><td>Password</td><td>:</td><td><b>siswa123</b></td></tr>
+            </table>
+          </div>
+        </div>
+      `;
+      
+      const kartu2 = m2 ? `
+        <div style="border: 2px solid #000; padding: 0; border-radius: 8px; width: 100%;">
+          <div style="text-align: center; background-color: #e0f2fe; padding: 10px; border-bottom: 2px solid #000;">
+            <b style="font-size: 14pt;">SMAN 1 BATUDAA PANTAI</b><br/>
+            <span>KARTU LOGIN SISTEM NILAI</span>
+          </div>
+          <div style="padding: 10px;">
+            <table style="width: 100%; font-size: 12pt;">
+              <tr><td width="30%">Nama</td><td width="5%">:</td><td><b>${m2.nama}</b></td></tr>
+              <tr><td>Kelas</td><td>:</td><td>${m2.kelas}</td></tr>
+              <tr><td>Username</td><td>:</td><td><b>${m2.nisn}</b></td></tr>
+              <tr><td>Password</td><td>:</td><td><b>siswa123</b></td></tr>
+            </table>
+          </div>
+        </div>
+      ` : '';
+
+      tableRows += `
+        <tr>
+          <td style="width: 50%; padding: 10px; vertical-align: top;">${kartu1}</td>
+          <td style="width: 50%; padding: 10px; vertical-align: top;">${kartu2}</td>
+        </tr>
+      `;
+    }
+
+    const htmlContent = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <meta charset="utf-8">
+        <title>Kartu Login Murid</title>
+        <style>
+          body { font-family: 'Times New Roman', serif; }
+        </style>
+      </head>
+      <body>
+        <table style="width: 100%; border-collapse: collapse;">
+          ${tableRows}
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'Kartu_Login_Siswa.doc';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const filteredMurid = murid.filter(m => 
@@ -144,8 +255,8 @@ export default function ManageMurid() {
           </h2>
           <p className="text-gray-400 text-sm mt-1">Kelola data siswa, NISN, dan rombongan belajar.</p>
         </div>
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="relative w-full md:w-48">
+        <div className="flex items-center gap-3 w-full md:w-auto flex-wrap justify-end">
+          <div className="relative w-full md:w-48 mb-2 md:mb-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
             <input 
               type="text" placeholder="Cari..."
@@ -154,7 +265,12 @@ export default function ManageMurid() {
             />
           </div>
           
-          <Button variant="secondary" icon={Download} onClick={handleDownloadTemplate}>Template</Button>
+          <Button variant="secondary" icon={FileText} onClick={handleExportWord} title="Export ke Word">Word</Button>
+          <Button variant="secondary" icon={Printer} onClick={handlePrintKartu} title="Cetak / Simpan PDF">Cetak</Button>
+          
+          <div className="h-6 w-px bg-gray-700 mx-1 hidden md:block"></div>
+
+          <Button variant="secondary" icon={Download} onClick={handleDownloadTemplate} title="Download Template CSV"></Button>
           
           <input type="file" accept=".csv" className="hidden" ref={fileInputRef} onChange={handleFileUpload} />
           <Button variant="secondary" icon={UploadCloud} onClick={() => fileInputRef.current?.click()}>Upload</Button>
@@ -167,7 +283,8 @@ export default function ManageMurid() {
         <div>
           <h4 className="text-blue-400 font-semibold text-sm">Informasi Akun Login Murid</h4>
           <p className="text-gray-400 text-xs mt-1">
-            Akun login murid dibuat secara otomatis. Murid dapat login menggunakan <strong>Username: [NISN]</strong> dan <strong>Password: siswa123</strong>.
+            Gunakan fitur pencarian untuk memfilter kartu mana saja yang ingin dicetak atau diexport. 
+            Murid dapat login menggunakan <strong>Username: [NISN]</strong> dan <strong>Password: siswa123</strong>.
           </p>
         </div>
       </div>
